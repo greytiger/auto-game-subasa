@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kiến Trúc Tool Auto - Captain Tsubasa: Dream Team (Tab S8)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #162032;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --blue: #38bdf8;
+      --green: #4ade80;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --purple: #c084fc;
+      --cyan: #22d3ee;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    .tab-btn:hover { color: #fff; border-color: var(--blue); }
+    .tab-btn.active {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .diagram-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      overflow-x: auto;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Flow Nodes */
+    .flow-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 640px;
+    }
+
+    .row {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .node {
+      background: var(--panel-2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+      flex: 1;
+      max-width: 280px;
+    }
+    .node:hover {
+      transform: translateY(-2px);
+      border-color: var(--blue);
+    }
+    .node.selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    .node-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: inline-block;
+    }
+    .node-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .node-desc {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .c-blue { border-color: rgba(56, 189, 248, 0.45); }
+    .c-blue .node-tag { color: var(--blue); }
+
+    .c-green { border-color: rgba(74, 222, 128, 0.45); }
+    .c-green .node-tag { color: var(--green); }
+
+    .c-amber { border-color: rgba(251, 191, 36, 0.45); }
+    .c-amber .node-tag { color: var(--amber); }
+
+    .c-red { border-color: rgba(248, 113, 113, 0.45); }
+    .c-red .node-tag { color: var(--red); }
+
+    .c-purple { border-color: rgba(192, 132, 252, 0.45); }
+    .c-purple .node-tag { color: var(--purple); }
+
+    .arrow-down {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .arrow-down::before, .arrow-down::after {
+      content: "";
+      height: 1px;
+      width: 40px;
+      background: var(--border);
+    }
+
+    .split-arrows {
+      display: flex;
+      justify-content: space-around;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 2px 0;
+    }
+
+    /* Detail Sidebar */
+    .detail-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      position: sticky;
+      top: 20px;
+    }
+    .detail-panel h2 {
+      font-size: 1.05rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .detail-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--blue);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+    .detail-body {
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+    .detail-body ul {
+      margin-top: 10px;
+      padding-left: 18px;
+    }
+    .detail-body li {
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+    .detail-body li strong { color: var(--text); }
+    .code-box {
+      margin-top: 12px;
+      background: #0b1120;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.78rem;
+      color: var(--cyan);
+      white-space: pre-wrap;
+    }
+
+    /* Layer Architecture */
+    .layer-box {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      background: rgba(15, 23, 42, 0.45);
+    }
+    .layer-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Kiến Trúc Tool Auto — Captain Tsubasa: Dream Team</h1>
+        <p class="subtitle">Chạy trực tiếp trên Galaxy Tab S8 (Termux + ADB Wireless Localhost) • Điều khiển qua agy-cli / Browser • Click vào từng khối để xem chi tiết</p>
+      </div>
+      <div class="badges">
+        <span class="badge">Persistent ADB</span>
+        <span class="badge">Pixel + ROI Vision</span>
+        <span class="badge">3-Tier Self-Healing</span>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('loop', this)">1. Vòng lặp xử lý chính &amp; Chống kẹt</button>
+      <button class="tab-btn" onclick="switchTab('system', this)">2. Kiến trúc hệ thống trên Tab S8</button>
+      <button class="tab-btn" onclick="switchTab('gameflow', this)">3. Luồng màn hình Game (State Graph)</button>
+    </div>
+
+    <div class="layout">
+      <div class="diagram-card">
+        <!-- TAB 1: MAIN LOOP + SELF HEALING -->
+        <div id="view-loop" class="view active">
+          <div class="flow-grid">
+            <div class="row">
+              <div class="node c-blue selected" onclick="showDetail('capture', this)">
+                <span class="node-tag">Bước 1 • Input</span>
+                <div class="node-title">Raw Screencap (ADB Socket)</div>
+                <div class="node-desc">Lấy buffer RGBA trực tiếp qua kết nối ADB giữ sẵn, không nén PNG.</div>
+              </div>
+            </div>
+
+            <div class="arrow-down">↓ Giảm tải CPU bằng Frame Diff</div>
+
+            <div class="row">
+              <div class="node c-green" onclick="showDetail('diff', this)">
+                <span class="node-tag">Bước 2 • Tiết kiệm tài nguyên</span>
+                <div class="node-title">Frame Diff (64×40 Gray)</div>
+                <div class="node-desc">So với khung hình trước. Nếu đứng yên &amp; đang trong trận → ngủ tiếp.</div>
+              </div>
+              <div class="node c-purple" onclick="showDetail('watchdog', this)">
+                <span class="node-tag">Giám sát song song</span>
+                <div class="node-title">Watchdog Timer</div>
+                <div class="node-desc">Đếm thời gian từ lần cuối chuyển màn / bấm nút thành công.</div>
+              </div>
+            </div>
+
+            <div class="arrow-down">↓ Khi có thay đổi hoặc đến chu kỳ kiểm tra</div>
+
+            <div class="row">
+              <div class="node c-blue" onclick="showDetail('fingerprint', this)">
+                <span class="node-tag">Bước 3A • &lt; 0.01ms</span>
+                <div class="node-title">Pixel Fingerprint + State Graph</div>
+                <div class="node-desc">Chỉ kiểm tra 3–5 điểm RGB của 2–3 màn hình kế tiếp hợp lệ + Popup.</div>
+              </div>
+              <div class="node c-blue" onclick="showDetail('roi', this)">
+                <span class="node-tag">Bước 3B • Xác nhận nút</span>
+                <div class="node-title">ROI Template Match (0.5x Gray)</div>
+                <div class="node-desc">Cắt đúng vùng nút hay xuất hiện để lấy tọa độ tap chính xác.</div>
+              </div>
+            </div>
+
+            <div class="split-arrows">
+              <span>↙ Nhận diện ĐÚNG màn hình</span>
+              <span>↘ KHÔNG khớp hoặc Quá thời gian (Stuck)</span>
+            </div>
+
+            <div class="row">
+              <div class="node c-green" onclick="showDetail('action', this)">
+                <span class="node-tag">Bước 4 • Thực thi</span>
+                <div class="node-title">Tap + Action Verification</div>
+                <div class="node-desc">Gửi tap qua persistent shell (±offset ngẫu nhiên), kiểm tra màn hình có đổi sau 1–2s.</div>
+              </div>
+              <div class="node c-amber" onclick="showDetail('recovery1', this)">
+                <span class="node-tag">Cứu hộ Cấp 1 • Soft Stuck</span>
+                <div class="node-title">Full-Scan + Universal Escape</div>
+                <div class="node-desc">Quét nút X, OK, Retry, Skip + lưu ảnh vào logs/stuck/ để debug.</div>
+              </div>
+            </div>
+
+            <div class="arrow-down">↓ Nếu vẫn kẹt sau 3 lần thử hoặc &gt; 45–60s</div>
+
+            <div class="row">
+              <div class="node c-amber" onclick="showDetail('recovery2', this)">
+                <span class="node-tag">Cứu hộ Cấp 2</span>
+                <div class="node-title">Android Back / Safe Tap</div>
+                <div class="node-desc">Gửi keyevent 4 (Back) hoặc tap vùng trống "Tap to continue".</div>
+              </div>
+              <div class="node c-red" onclick="showDetail('recovery3', this)">
+                <span class="node-tag">Cứu hộ Cấp 3 • Hard Stuck</span>
+                <div class="node-title">Force Stop &amp; Relaunch Game</div>
+                <div class="node-desc">Tắt hẳn game, mở lại từ Title → Home → tiếp tục nhiệm vụ.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: SYSTEM ARCHITECTURE -->
+        <div id="view-system" class="view">
+          <div class="flow-grid">
+            <div class="layer-box">
+              <div class="layer-title">Thiết bị điều khiển từ xa (PC / Điện thoại khác)</div>
+              <div class="row">
+                <div class="node c-purple" onclick="showDetail('remote', this)">
+                  <span class="node-tag">Browser / LAN</span>
+                  <div class="node-title">Trình duyệt → agy-cli Remote</div>
+                  <div class="node-desc">Bật/tắt tool, xem log real-time, xem ảnh lỗi trong logs/stuck/.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="arrow-down">↕ Mạng LAN (agy-cli Web Remote Control)</div>
+
+            <div class="layer-box">
+              <div class="layer-title">Galaxy Tab S8 — Termux Environment (Không cần Root)</div>
+              <div class="row">
+                <div class="node c-blue" onclick="showDetail('termux_bot', this)">
+                  <span class="node-tag">Python Engine</span>
+                  <div class="node-title">Tsubasa Auto Bot</div>
+                  <div class="node-desc">State Machine, Watchdog, Vision (OpenCV/NumPy), Config JSON.</div>
+                </div>
+                <div class="node c-green" onclick="showDetail('adb_local', this)">
+                  <span class="node-tag">Localhost IPC</span>
+                  <div class="node-title">ADB Wireless (127.0.0.1:port)</div>
+                  <div class="node-desc">Truyền ảnh raw screencap &amp; nhận lệnh input tap/keyevent qua pipe.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="arrow-down">↕ Android SurfaceFlinger &amp; InputManager</div>
+
+            <div class="layer-box">
+              <div class="layer-title">Galaxy Tab S8 — Android OS</div>
+              <div class="row">
+                <div class="node c-amber" onclick="showDetail('game_app', this)">
+                  <span class="node-tag">Target App</span>
+                  <div class="node-title">Captain Tsubasa: Dream Team</div>
+                  <div class="node-desc">Chạy ở độ phân giải 2560×1600 (Landscape).</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: GAME FLOW -->
+        <div id="view-gameflow" class="view">
+          <div class="flow-grid">
+            <div class="row">
+              <div class="node c-blue" onclick="showDetail('st_home', this)">
+                <span class="node-tag">State 1</span>
+                <div class="node-title">HOME / LOBBY</div>
+                <div class="node-desc">Chọn chế độ: Daily Missions, Event Farm, hoặc League.</div>
+              </div>
+              <div class="node c-blue" onclick="showDetail('st_quest', this)">
+                <span class="node-tag">State 2</span>
+                <div class="node-title">MISSION / STAGE LIST</div>
+                <div class="node-desc">Chọn màn chơi mục tiêu hoặc bấm Claim All nhận quà.</div>
+              </div>
+            </div>
+
+            <div class="arrow-down">↓</div>
+
+            <div class="row">
+              <div class="node c-blue" onclick="showDetail('st_team', this)">
+                <span class="node-tag">State 3</span>
+                <div class="node-title">TEAM SELECT &amp; KICK OFF</div>
+                <div class="node-desc">Xác nhận đội hình / Friend hỗ trợ → bấm Kick Off.</div>
+              </div>
+              <div class="node c-amber" onclick="showDetail('st_stamina', this)">
+                <span class="node-tag">Popup Ngắt Quãng</span>
+                <div class="node-title">STAMINA / NETWORK POPUP</div>
+                <div class="node-desc">Hết lực (dùng bình / nghỉ chờ) hoặc Retry khi rớt mạng.</div>
+              </div>
+            </div>
+
+            <div class="arrow-down">↓ Ngủ dài (Adaptive Sleep 15–20s đầu, check mỗi 3–5s)</div>
+
+            <div class="row">
+              <div class="node c-green" onclick="showDetail('st_match', this)">
+                <span class="node-tag">State 4</span>
+                <div class="node-title">IN-MATCH (AUTO MODE)</div>
+                <div class="node-desc">Kiểm tra nút Auto đã bật chưa, Skip thoại/animation nếu có.</div>
+              </div>
+              <div class="node c-green" onclick="showDetail('st_result', this)">
+                <span class="node-tag">State 5</span>
+                <div class="node-title">RESULT &amp; REWARD</div>
+                <div class="node-desc">Tap qua màn kết quả, nhận vật phẩm, bấm Retry hoặc Next.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="legend">
+          <span><i class="dot" style="background: var(--blue)"></i> Xử lý chính / Nhận diện</span>
+          <span><i class="dot" style="background: var(--green)"></i> Tối ưu / Thao tác hợp lệ</span>
+          <span><i class="dot" style="background: var(--amber)"></i> Cứu hộ nhẹ / Popup</span>
+          <span><i class="dot" style="background: var(--red)"></i> Cứu hộ nặng (Restart)</span>
+          <span><i class="dot" style="background: var(--purple)"></i> Giám sát / Điều khiển từ xa</span>
+        </div>
+      </div>
+
+      <!-- DETAIL SIDEBAR -->
+      <aside class="detail-panel" id="detail-panel">
+        <span class="detail-tag" id="d-tag">Bước 1 • Input</span>
+        <h2 id="d-title">Raw Screencap (ADB Socket)</h2>
+        <div class="detail-body" id="d-body">
+          <p>Thay vì gọi <code>adb exec-out screencap -p</code> (nén PNG tốn 300–600ms CPU mỗi lần), tool đọc thẳng dữ liệu pixel thô.</p>
+          <ul>
+            <li><strong>Tốc độ:</strong> Nhanh hơn 5–10 lần so với nén PNG.</li>
+            <li><strong>Persistent Connection:</strong> Giữ sẵn kết nối socket tới ADB server thay vì mở process mới liên tục.</li>
+            <li><strong>Bộ nhớ:</strong> Giải mã trực tiếp trong RAM thành mảng NumPy để kiểm tra pixel.</li>
+          </ul>
+          <div class="code-box">raw = adb.screencap_raw() # RGBA bytes
+frame = np.frombuffer(raw[12:], dtype=np.uint8).reshape(H, W, 4)</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const DETAILS = {
+      capture: {
+        tag: "Bước 1 • Input",
+        title: "Raw Screencap (ADB Socket)",
+        html: `<p>Thay vì gọi <code>adb exec-out screencap -p</code> (nén PNG tốn 300–600ms CPU mỗi lần), tool đọc thẳng dữ liệu pixel thô.</p>
+          <ul>
+            <li><strong>Tốc độ:</strong> Nhanh hơn 5–10 lần so với nén PNG.</li>
+            <li><strong>Persistent Connection:</strong> Giữ sẵn kết nối socket tới ADB server thay vì mở process mới liên tục.</li>
+            <li><strong>Bộ nhớ:</strong> Giải mã trực tiếp trong RAM thành mảng NumPy để kiểm tra pixel.</li>
+          </ul>
+          <div class="code-box">raw = adb.screencap_raw() # RGBA bytes
+frame = np.frombuffer(raw[12:], dtype=np.uint8).reshape(H, W, 4)</div>`
+      },
+      diff: {
+        tag: "Bước 2 • Tiết kiệm tài nguyên",
+        title: "Frame Diff & Adaptive Sleep",
+        html: `<p>Thu nhỏ khung hình về <code>64×40</code> grayscale và so sánh với khung hình trước đó.</p>
+          <ul>
+            <li><strong>Đang trong trận Auto:</strong> Ngủ 3–5 giây mỗi lần check, CPU gần như 0%.</li>
+            <li><strong>Đang chuyển menu:</strong> Check mỗi 0.4–0.6 giây để phản ứng nhanh.</li>
+            <li><strong>Màn hình đứng yên:</strong> Bỏ qua bước OpenCV nặng nề, chỉ để Watchdog đếm thời gian.</li>
+          </ul>`
+      },
+      watchdog: {
+        tag: "Giám sát song song",
+        title: "Watchdog Timer (Chống treo vĩnh viễn)",
+        html: `<p>Theo dõi 2 mốc thời gian quan trọng để không bao giờ đứng im quá lâu:</p>
+          <ul>
+            <li><strong>Soft Stuck (15–20s ở menu):</strong> Không có thao tác hợp lệ hoặc không nhận diện được màn hình nào → kích hoạt Cứu hộ Cấp 1.</li>
+            <li><strong>Hard Stuck (45–60s):</strong> Đã thử Cấp 1 &amp; 2 mà màn hình vẫn không đổi → kích hoạt Cứu hộ Cấp 3 (Restart game).</li>
+          </ul>`
+      },
+      fingerprint: {
+        tag: "Bước 3A • < 0.01ms",
+        title: "Pixel Fingerprint + State Graph",
+        html: `<p>Không quét toàn bộ 20 màn hình cùng lúc. Tool chỉ kiểm tra các màn hình hợp lệ tiếp theo dựa trên trạng thái hiện tại.</p>
+          <ul>
+            <li><strong>Pixel Fingerprint:</strong> Đọc màu RGB tại 3–5 tọa độ cố định (ví dụ thanh tiêu đề, nền tối của popup).</li>
+            <li><strong>Chi phí:</strong> Gần như bằng 0, chỉ tốn vài phép đọc mảng NumPy.</li>
+          </ul>
+          <div class="code-box">NEXT_STATES = {
+  "TEAM_SELECT": ["LOADING", "IN_MATCH", "POPUP_STAMINA"],
+  "IN_MATCH":    ["RESULT", "POPUP_NETWORK"]
+}</div>`
+      },
+      roi: {
+        tag: "Bước 3B • Xác nhận nút",
+        title: "ROI Template Match (0.5x Grayscale)",
+        html: `<p>Khi Pixel Fingerprint khớp màn hình mục tiêu, tool cắt đúng vùng nhỏ (ROI) nơi nút bấm thường xuất hiện rồi mới chạy OpenCV.</p>
+          <ul>
+            <li><strong>Giảm 20–50x tính toán:</strong> Chỉ quét vùng ~200×100 thay vì cả màn 2560×1600.</li>
+            <li><strong>0.5x Grayscale:</strong> Giảm nửa kích thước + bỏ kênh màu giúp chạy cực mượt trên chip ARM của Tab S8.</li>
+          </ul>`
+      },
+      action: {
+        tag: "Bước 4 • Thực thi & Xác nhận",
+        title: "Tap + Action Verification",
+        html: `<p>Mọi cú bấm đều được gửi qua 1 luồng <code>adb shell</code> mở sẵn (không spawn process mới) kèm random offset ±3–5px.</p>
+          <ul>
+            <li><strong>Verify ngay:</strong> Sau khi bấm 1–2 giây, kiểm tra xem khung hình có thay đổi không.</li>
+            <li><strong>Phát hiện bấm hụt sớm:</strong> Nếu bấm 3 lần liên tiếp mà màn hình đứng im → báo kẹt ngay lập tức, không chờ hết timeout.</li>
+          </ul>`
+      },
+      recovery1: {
+        tag: "Cứu hộ Cấp 1 • Soft Stuck",
+        title: "Full-Scan + Universal Escape + Snapshot",
+        html: `<p>Khi State Graph không khớp hoặc bị bấm hụt 3 lần:</p>
+          <ul>
+            <li><strong>Auto-Debug Snapshot:</strong> Lưu ngay ảnh màn hình vào <code>logs/stuck/</code> để bạn xem lại sau.</li>
+            <li><strong>Full-Scan:</strong> Quét tất cả màn hình phòng trường hợp game vừa nhảy cóc.</li>
+            <li><strong>Universal Escape:</strong> Tìm và bấm các nút thoát phổ biến như <code>Close (X)</code>, <code>OK</code>, <code>Retry</code>, <code>Skip</code>.</li>
+          </ul>`
+      },
+      recovery2: {
+        tag: "Cứu hộ Cấp 2",
+        title: "Android Back Key & Safe Tap",
+        html: `<p>Nếu không tìm thấy nút thoát nào ở Cấp 1 (ví dụ hiệu ứng lấp lánh làm lệch template):</p>
+          <ul>
+            <li>Gửi phím Back hệ thống: <code>input keyevent 4</code>.</li>
+            <li>Thử tap vào vùng trống an toàn (thường dùng cho các màn <em>Tap to Continue</em> / nhận thưởng).</li>
+            <li>Kiểm tra Frame Diff ngay sau khi thử để xem có thoát được không.</li>
+          </ul>`
+      },
+      recovery3: {
+        tag: "Cứu hộ Cấp 3 • Hard Stuck",
+        title: "Force Stop & Relaunch Game",
+        html: `<p>Chốt chặn cuối cùng giúp tool chạy qua đêm không bao giờ chết hẳn:</p>
+          <ul>
+            <li>Dừng hẳn app bị treo / rớt mạng nặng bằng <code>am force-stop</code>.</li>
+            <li>Khởi động lại game qua <code>monkey</code> hoặc <code>am start</code>.</li>
+            <li>Đưa State Machine về <code>TITLE_SCREEN</code> → vào lại <code>HOME</code> → chạy tiếp nhiệm vụ.</li>
+          </ul>
+          <div class="code-box">adb shell am force-stop com.klab.captain283.global
+sleep 2
+adb shell monkey -p com.klab.captain283.global 1</div>`
+      },
+      remote: {
+        tag: "Browser / LAN",
+        title: "Điều khiển từ xa qua agy-cli",
+        html: `<p>Từ laptop hoặc điện thoại khác trong mạng LAN, bạn truy cập trình duyệt vào <code>agy-cli</code> trên Tab S8 để:</p>
+          <ul>
+            <li>Start / Stop script auto hoặc chuyển kịch bản (Daily / Event / League).</li>
+            <li>Theo dõi log trạng thái hiện tại, số trận đã chạy, số lần tự cứu hộ.</li>
+            <li>Xem ảnh chụp trong <code>logs/stuck/</code> nếu có popup mới xuất hiện.</li>
+          </ul>`
+      },
+      termux_bot: {
+        tag: "Python Engine",
+        title: "Tsubasa Auto Bot trên Termux",
+        html: `<p>Chạy nền trong Termux (bật <code>termux-wake-lock</code> và tắt tối ưu pin cho Termux để không bị Android kill).</p>
+          <ul>
+            <li><code>adb_client.py</code>: Kết nối ADB socket persistent.</li>
+            <li><code>vision.py</code>: Frame diff, Pixel fingerprint, ROI template match.</li>
+            <li><code>state_machine.py</code>: State graph, Watchdog &amp; Recovery 3 cấp.</li>
+          </ul>`
+      },
+      adb_local: {
+        tag: "Localhost IPC",
+        title: "ADB Wireless (127.0.0.1)",
+        html: `<p>Termux kết nối thẳng tới ADB daemon ngay trên chính chiếc Tab S8 thông qua loopback localhost.</p>
+          <ul>
+            <li>Không phụ thuộc tốc độ Wi-Fi khi truyền ảnh màn hình.</li>
+            <li>Không cần dây cáp hay máy tính trung gian.</li>
+          </ul>`
+      },
+      game_app: {
+        tag: "Target App",
+        title: "Captain Tsubasa: Dream Team",
+        html: `<p>Chạy ở chế độ màn hình ngang chuẩn của Tab S8 (2560×1600).</p>
+          <ul>
+            <li>Nên tắt chia đôi màn hình (split-screen) khi chạy auto để tọa độ ROI và Pixel Fingerprint luôn cố định 100%.</li>
+          </ul>`
+      },
+      st_home: {
+        tag: "State 1",
+        title: "HOME / LOBBY",
+        html: `<p>Điểm xuất phát chuẩn. Từ đây kịch bản chọn đi làm <strong>Daily Missions</strong> (1 lần/ngày) hoặc lặp lại <strong>Event / Story</strong>.</p>`
+      },
+      st_quest: {
+        tag: "State 2",
+        title: "MISSION / STAGE LIST",
+        html: `<p>Tìm màn chơi cần farm hoặc kiểm tra badge đỏ ở mục Missions để vào bấm <strong>Claim All</strong> nhận thưởng.</p>`
+      },
+      st_team: {
+        tag: "State 3",
+        title: "TEAM SELECT & KICK OFF",
+        html: `<p>Xác nhận đội hình, chọn người hỗ trợ (Friend/Club) nếu cần, rồi bấm <strong>Kick Off</strong>. Nếu hiện popup hết Stamina sẽ chuyển sang nhánh xử lý Stamina.</p>`
+      },
+      st_stamina: {
+        tag: "Popup Ngắt Quãng",
+        title: "STAMINA / NETWORK POPUP",
+        html: `<p>Các popup có thể chen ngang ở bất kỳ đâu:</p>
+          <ul>
+            <li><strong>Hết Stamina:</strong> Tự dùng bình hồi phục (theo cấu hình) hoặc tạm nghỉ chờ hồi lực.</li>
+            <li><strong>Lỗi mạng / Retry:</strong> Tự động bấm Retry sau vài giây.</li>
+          </ul>`
+      },
+      st_match: {
+        tag: "State 4",
+        title: "IN-MATCH (AUTO MODE)",
+        html: `<p>Đảm bảo nút <strong>Auto</strong> đã được bật. Trong lúc trận đấu diễn ra, tool chuyển sang chế độ ngủ dài (Adaptive Sleep) để máy mát và tiết kiệm pin.</p>`
+      },
+      st_result: {
+        tag: "State 5",
+        title: "RESULT & REWARD",
+        html: `<p>Nhận thưởng cuối trận, vượt qua các màn lên cấp/thông báo mở khóa, sau đó bấm <strong>Retry</strong> (nếu farm lặp) hoặc <strong>Next / Home</strong> để sang nhiệm vụ kế tiếp.</p>`
+      }
+    };
+
+    function switchTab(name, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-' + name).classList.add('active');
+    }
+
+    function showDetail(key, el) {
+      const d = DETAILS[key];
+      if (!d) return;
+      document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('d-tag').textContent = d.tag;
+      document.getElementById('d-title').textContent = d.title;
+      document.getElementById('d-body').innerHTML = d.html;
+    }
+  </script>
+</body>
+</html>
