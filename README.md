@@ -27,9 +27,9 @@ auto-game-subasa/
 └── requirements.txt
 ```
 
-## Chạy nhanh trên macOS
+## Chạy nhanh trên macOS (mặc định BlueStacks Air)
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m src.main --emulator mumu --check
+python -m src.main --check
 ```

@@ -22,35 +22,35 @@ pip install -r requirements.txt
 
 ## 2. Bật ADB trên giả lập Android (macOS)
 
-- **MuMuPlayer Pro (Apple Silicon):** Bật *ADB Debugging* trong Settings → mặc định cổng `16384` (hoặc `7555`).
-- **BlueStacks Air (macOS):** Settings → Advanced → bật *Android Debug Bridge (ADB)* → mặc định cổng `5555`.
+- **BlueStacks Air (macOS — mặc định, miễn phí trên M4):** Settings → Advanced → bật *Android Debug Bridge (ADB)* → cổng mặc định `5555`.
 - **Android Studio AVD:** Tự động hiển thị dưới dạng `emulator-5554`.
+- **MuMuPlayer Pro (Apple Silicon):** Bật *ADB Debugging* trong Settings → mặc định cổng `16384` (hoặc `7555`).
 
-Khuyến nghị đặt độ phân giải giả lập ở **1920×1080 (Landscape)** để khớp 1:1 với tọa độ tham chiếu, hoặc bất kỳ tỷ lệ 16:9 nào (hệ thống tự scale ROI).
+Cấu hình khuyên dùng cho **MacBook Air M4**: độ phân giải `1280×720` hoặc `1920×1080` (Landscape), giới hạn **30 FPS**, `4 GB RAM`, tắt tiếng giả lập để máy mát khi treo lâu. Tool hỗ trợ **auto-reconnect ADB** nếu kết nối bị ngắt tạm thời.
 
 ## 3. Kiểm tra kết nối & Chụp ảnh mẫu (Templates)
 
 ```bash
-# Kiểm tra kết nối ADB với MuMuPlayer Pro
-python -m src.main --emulator mumu --check
+# Kiểm tra kết nối ADB (mặc định là bluestacks cổng 5555)
+python -m src.main --check
 
-# Hoặc với BlueStacks Air / cổng tùy chỉnh
-python -m src.main --emulator bluestacks --check
-python -m src.main --port 7555 --check
+# Hoặc chỉ định giả lập / cổng tùy chỉnh
+python -m src.main --emulator avd --check
+python -m src.main --port 5555 --check
 ```
 
 Chụp ảnh mẫu nút bấm vào `templates/` (ví dụ nút `home_story_btn`):
 
 ```bash
-python -m src.main --emulator mumu --capture home_story_btn --roi 1350 700 1750 920
+python -m src.main --capture home_story_btn --roi 1350 700 1750 920
 ```
 
 ## 4. Chạy Bot
 
 ```bash
 # Chạy thử không bấm thật (Dry-run)
-python -m src.main --emulator mumu --dry-run --verbose
+python -m src.main --dry-run --verbose
 
 # Chạy tự động thật
-python -m src.main --emulator mumu
+python -m src.main
 ```

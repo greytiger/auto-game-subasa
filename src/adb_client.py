@@ -6,7 +6,7 @@ import logging
 import re
 import struct
 import time
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple, TypeVar
 
 import cv2
 import numpy as np
@@ -15,13 +15,15 @@ from src.config import ADBConfig
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
+
 
 class ADBConnectionError(RuntimeError):
     """Raised when the macOS ADB server or target emulator cannot be reached."""
 
 
 class EmulatorADBClient:
-    """Persistent ADB wrapper using adbutils over 127.0.0.1:5037."""
+    """Persistent ADB wrapper using adbutils over 127.0.0.1:5037 with auto-reconnect."""
 
     def __init__(self, config: ADBConfig) -> None:
         self.config = config
@@ -52,13 +54,18 @@ class EmulatorADBClient:
                 logger.warning("ADB connect(%s) failed: %s", target, exc)
 
         devices = self._client.device_list()
+        if not devices and target and ":" in target:
+            time.sleep(0.5)
+            devices = self._client.device_list()
+
         if not devices:
             raise ADBConnectionError(
                 "No Android emulator detected via ADB. "
-                "Make sure your macOS emulator (MuMuPlayer Pro / BlueStacks Air / AVD) "
+                "Make sure BlueStacks Air (or your macOS emulator) "
                 "is running with ADB debugging enabled."
             )
 
+        self._device = None
         if target:
             for dev in devices:
                 if dev.serial == target:
@@ -78,6 +85,53 @@ class EmulatorADBClient:
         self._screen_size = self.get_screen_size()
         logger.info("Emulator resolution: %dx%d", *self._screen_size)
 
+    def reconnect(self) -> None:
+        """Reset stale ADB socket/device state and reconnect to the emulator."""
+        target = self.config.resolved_target()
+        if self._client is not None and target and ":" in target:
+            try:
+                self._client.disconnect(target, raise_error=False)
+            except TypeError:
+                try:
+                    self._client.disconnect(target)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+        self._device = None
+        self.connect()
+
+    def _with_reconnect(self, op_name: str, func: Callable[[], T]) -> T:
+        attempts = max(1, self.config.reconnect_attempts)
+        last_exc: Optional[Exception] = None
+
+        for attempt in range(1, attempts + 1):
+            try:
+                return func()
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= attempts:
+                    break
+                delay = self.config.reconnect_delay_sec * attempt
+                logger.warning(
+                    "ADB %s failed (%s). Reconnecting (%d/%d) in %.1fs...",
+                    op_name,
+                    exc,
+                    attempt,
+                    attempts - 1,
+                    delay,
+                )
+                time.sleep(delay)
+                try:
+                    self.reconnect()
+                except Exception as rec_exc:
+                    logger.warning("ADB reconnect attempt failed: %s", rec_exc)
+                    last_exc = rec_exc
+
+        raise ADBConnectionError(
+            f"ADB {op_name} failed after {attempts} attempt(s): {last_exc}"
+        ) from last_exc
+
     @property
     def device(self):
         if self._device is None:
@@ -96,11 +150,10 @@ class EmulatorADBClient:
         return self._screen_size
 
     def screencap_bgr(self) -> np.ndarray:
-        """Capture the current frame as a BGR numpy array.
+        """Capture the current frame as a BGR numpy array with auto-reconnect."""
+        return self._with_reconnect("screencap", self._screencap_once)
 
-        Tries raw `screencap` first (avoids PNG compression overhead), and falls
-        back to `screencap -p` if the emulator returns an unexpected raw header.
-        """
+    def _screencap_once(self) -> np.ndarray:
         raw = self._read_raw_screencap()
         if raw is not None:
             return raw
@@ -139,17 +192,24 @@ class EmulatorADBClient:
 
     def tap(self, x: int, y: int) -> None:
         logger.debug("ADB tap(%d, %d)", x, y)
-        self.device.shell(f"input tap {int(x)} {int(y)}")
+        self._with_reconnect(
+            "tap", lambda: self.device.shell(f"input tap {int(x)} {int(y)}")
+        )
 
     def swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> None:
         logger.debug("ADB swipe(%d,%d -> %d,%d, %dms)", x1, y1, x2, y2, duration_ms)
-        self.device.shell(
-            f"input swipe {int(x1)} {int(y1)} {int(x2)} {int(y2)} {int(duration_ms)}"
+        self._with_reconnect(
+            "swipe",
+            lambda: self.device.shell(
+                f"input swipe {int(x1)} {int(y1)} {int(x2)} {int(y2)} {int(duration_ms)}"
+            ),
         )
 
     def keyevent(self, keycode: int) -> None:
         logger.debug("ADB keyevent(%d)", keycode)
-        self.device.shell(f"input keyevent {int(keycode)}")
+        self._with_reconnect(
+            "keyevent", lambda: self.device.shell(f"input keyevent {int(keycode)}")
+        )
 
     def back(self) -> None:
         self.keyevent(4)
@@ -157,11 +217,18 @@ class EmulatorADBClient:
     def force_stop(self, package_name: Optional[str] = None) -> None:
         pkg = package_name or self.config.package_name
         logger.warning("Force stopping package: %s", pkg)
-        self.device.shell(f"am force-stop {pkg}")
+        self._with_reconnect(
+            "force_stop", lambda: self.device.shell(f"am force-stop {pkg}")
+        )
 
     def launch_app(self, package_name: Optional[str] = None, wait_sec: float = 2.0) -> None:
         pkg = package_name or self.config.package_name
         logger.info("Launching package: %s", pkg)
-        self.device.shell(f"monkey -p {pkg} -c android.intent.category.LAUNCHER 1")
+        self._with_reconnect(
+            "launch_app",
+            lambda: self.device.shell(
+                f"monkey -p {pkg} -c android.intent.category.LAUNCHER 1"
+            ),
+        )
         if wait_sec > 0:
             time.sleep(wait_sec)

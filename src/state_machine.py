@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from src.adb_client import ADBConnectionError
 from src.config import BotConfig
 from src.vision import ROI, MatchResult, VisionEngine, save_debug_frame
 from src.watchdog import StuckLevel, Watchdog
@@ -241,7 +242,18 @@ class GameBot:
         logger.info("Starting GameBot loop (dry_run=%s)...", self.config.dry_run)
         try:
             while True:
-                sleep_sec = self.step()
-                time.sleep(sleep_sec)
+                try:
+                    sleep_sec = self.step()
+                    time.sleep(sleep_sec)
+                except ADBConnectionError as exc:
+                    logger.warning(
+                        "ADB connection interrupted (%s). Waiting 5s before reconnect...",
+                        exc,
+                    )
+                    time.sleep(5.0)
+                    try:
+                        self.adb.reconnect()
+                    except ADBConnectionError as rec_exc:
+                        logger.warning("Reconnect still failing: %s", rec_exc)
         except KeyboardInterrupt:
             logger.info("Bot stopped by user (Ctrl+C).")

@@ -23,8 +23,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--emulator",
         choices=sorted(EMULATOR_ADB_PORTS.keys()),
-        default="mumu",
-        help="macOS Android emulator preset (default: mumu)",
+        default="bluestacks",
+        help="macOS Android emulator preset (default: bluestacks)",
     )
     parser.add_argument(
         "--port",

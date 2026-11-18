@@ -17,10 +17,12 @@ EMULATOR_ADB_PORTS: Dict[str, int] = {
 class ADBConfig:
     host: str = "127.0.0.1"
     server_port: int = 5037
-    emulator_type: str = "mumu"
+    emulator_type: str = "bluestacks"
     emulator_port: int | None = None
     serial: str | None = None
     package_name: str = "jp.klab.captain283.global"
+    reconnect_attempts: int = 3
+    reconnect_delay_sec: float = 1.5
 
     def resolved_target(self) -> str | None:
         if self.serial:

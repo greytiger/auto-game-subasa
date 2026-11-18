@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import cv2
 import numpy as np
 
+from src.adb_client import ADBConnectionError, EmulatorADBClient
 from src.config import ADBConfig, BotConfig, TimingConfig, VisionConfig
 from src.state_machine import GameBot, GameState, StateRule
 from src.vision import TemplateStore, VisionEngine, scale_point, scale_roi
@@ -131,6 +132,47 @@ class TestWatchdogAndStateMachine(unittest.TestCase):
             self.assertEqual(bot.current_state, GameState.TITLE)
             adb.tap.assert_called_once()
             self.assertEqual(wd.consecutive_failed_taps, 0)
+
+
+class TestADBReconnect(unittest.TestCase):
+    def test_tap_retries_and_reconnects_on_failure(self) -> None:
+        cfg = ADBConfig(
+            emulator_type="bluestacks",
+            reconnect_attempts=3,
+            reconnect_delay_sec=0.0,
+        )
+        client = EmulatorADBClient(cfg)
+
+        bad_device = MagicMock()
+        bad_device.shell.side_effect = RuntimeError("device offline")
+        good_device = MagicMock()
+
+        client._device = bad_device
+
+        def fake_reconnect() -> None:
+            client._device = good_device
+
+        client.reconnect = MagicMock(side_effect=fake_reconnect)  # type: ignore[method-assign]
+        client.tap(100, 200)
+
+        client.reconnect.assert_called_once()
+        good_device.shell.assert_called_once_with("input tap 100 200")
+
+    def test_raises_adb_connection_error_when_exhausted(self) -> None:
+        cfg = ADBConfig(
+            emulator_type="bluestacks",
+            reconnect_attempts=2,
+            reconnect_delay_sec=0.0,
+        )
+        client = EmulatorADBClient(cfg)
+        bad_device = MagicMock()
+        bad_device.shell.side_effect = RuntimeError("connection reset")
+        client._device = bad_device
+        client.reconnect = MagicMock()  # type: ignore[method-assign]
+
+        with self.assertRaises(ADBConnectionError):
+            client.tap(50, 60)
+        client.reconnect.assert_called_once()
 
 
 if __name__ == "__main__":
